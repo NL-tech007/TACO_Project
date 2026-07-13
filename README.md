@@ -76,7 +76,7 @@ TACO_Project
 
 |—— |—— lesson 1
 
-│   ├── lesson3
+│   ├── lesson2
 
 │   ├── lesson3
 
