@@ -74,7 +74,7 @@ TACO_Project
 
 ├── src
 
-|—— |—— lesson 1
+|—— |—— lesson1
 
 │   ├── lesson2
 

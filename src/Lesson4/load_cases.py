@@ -1,9 +1,7 @@
 import pandas as pd
-
 from pathlib import Path
 
 # 当前文件在 src/lesson4 中
-
 # parents[2] 回到 TACO_Project 根目录
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

@@ -1,0 +1,57 @@
+# 用途：保存第8课 Workflow 3 的三组课堂测试输入，方便复制到 Dify Start 节点。
+
+Test A - Low TACO Probability
+
+taco_probability:
+20
+
+confidence:
+high
+
+domain:
+tariff
+
+Expected:
+The market may expect the threat to hold.
+SPY may be down.
+GLD may be up.
+USO may be down or sideways.
+Magnitude may be mid or high.
+
+---
+
+Test B - Medium TACO Probability
+
+taco_probability:
+50
+
+confidence:
+med
+
+domain:
+tariff
+
+Expected:
+The result is uncertain.
+Most directions should be sideways.
+Magnitude should not be high.
+
+---
+
+Test C - High TACO Probability
+
+taco_probability:
+85
+
+confidence:
+high
+
+domain:
+tariff
+
+Expected:
+The market may expect softening.
+SPY may be up or sideways.
+USO may be up or sideways.
+GLD may be sideways or down.
+Magnitude may be mid.
