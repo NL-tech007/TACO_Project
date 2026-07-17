@@ -144,6 +144,10 @@ TACO_Project
 
 |---|---|---|
 
+| Lesson 1 |
+
+| Lesson 2 | 
+
 | Lesson 3 | Financial Data Visualization | 市场走势图、事件标注图、相关性热力图 |
 
 | Lesson 4 | TACO Historical Case Analysis | 历史案例分析图表、RAG 案例 CSV |
