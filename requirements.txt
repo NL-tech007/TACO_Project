@@ -1,0 +1,16 @@
+#Cloud Install
+fastapi
+
+uvicorn
+
+requests
+
+python-dotenv
+
+streamlit
+
+matplotlib
+
+pandas
+
+yfinance

@@ -1,17 +1,66 @@
-"""第10课：Streamlit 前端页面。
-本页面只调用第9课 FastAPI 后端，不直接调用 Dify，也不处理 API Key。
+"""第11课：Streamlit Cloud 部署版前端。
+云端版不调用本地 FastAPI。
+它从 Streamlit Cloud 的 st.secrets 读取 Dify Workflow API Key，
+然后直接调用三个 Dify Workflow。
 运行方式：
-streamlit run frontend/streamlit_app.py
+streamlit run frontend/streamlit_cloud_app.py
+Streamlit Cloud Secrets 示例：
+DIFY_BASE_URL = "https://api.dify.ai/v1"
+WF1_API_KEY = "第6课 Statement Classifier 的 API Key"
+WF2_API_KEY = "第7课 Probability Engine 的 API Key"
+WF3_API_KEY = "第8课 Market Impact Prediction 的 API Key"
 """
-import os
 import re
 import matplotlib.pyplot as plt
 import requests
 import streamlit as st
  
-# API_URL 可以通过环境变量覆盖，默认连接本地 FastAPI 后端。
-API_URL = os.getenv("TACO_API_URL", "http://127.0.0.1:8000/analyze")
+DEFAULT_DIFY_BASE_URL = "https://api.dify.ai/v1"
  
+# ==============================
+# Secrets 读取工具
+# ==============================
+def get_secret(key: str, default: str = "") -> str:
+    """
+    安全读取 Streamlit Secrets。
+    直接访问 st.secrets 时，如果本地没有 secrets.toml，
+    Streamlit 会抛出 StreamlitSecretNotFoundError。
+    所以这里统一 try / except，避免页面直接崩溃。
+    """
+    try:
+        value = st.secrets.get(key, default)
+        return str(value).strip()
+    except Exception:
+        return default
+ 
+def check_secrets() -> list[str]:
+    """检查 Streamlit Cloud Secrets 是否配置完整。"""
+    required_keys = [
+        "WF1_API_KEY",
+        "WF2_API_KEY",
+        "WF3_API_KEY",
+    ]
+    missing = []
+    for key in required_keys:
+        value = get_secret(key)
+        if not value:
+            missing.append(key)
+    return missing
+ 
+def get_dify_api_url() -> str:
+    """读取 Dify API 基础地址，并拼出 Workflow API 地址。"""
+    base_url = get_secret("DIFY_BASE_URL", DEFAULT_DIFY_BASE_URL)
+    if not base_url:
+        base_url = DEFAULT_DIFY_BASE_URL
+    base_url = base_url.rstrip("/")
+    # 兼容用户写 https://api.dify.ai 的情况
+    if not base_url.endswith("/v1"):
+        base_url = base_url + "/v1"
+    return f"{base_url}/workflows/run"
+ 
+# ==============================
+# 数据处理工具函数
+# ==============================
 def safe_probability(value) -> float:
     """把概率安全转换为 0-100 之间的数字。"""
     try:
@@ -43,8 +92,8 @@ def normalize_direction(direction) -> str:
  
 def parse_market_summary(market_prediction: dict) -> dict:
     """
-    兼容第8课 Workflow 3 只返回 summary 的情况。
-    例如 summary:
+    兼容 Workflow 3 只返回 summary 的情况。
+    例如：
     Market Impact Prediction
     USO: neutral
     GLD: up
@@ -56,7 +105,6 @@ def parse_market_summary(market_prediction: dict) -> dict:
     """
     parsed = dict(market_prediction)
     summary = str(market_prediction.get("summary", ""))
-    # 如果后端已经有结构化字段，就优先保留
     if "direction_uso" not in parsed:
         match = re.search(r"USO:\s*(up|down|neutral|sideways)", summary, re.IGNORECASE)
         if match:
@@ -92,21 +140,106 @@ def parse_market_summary(market_prediction: dict) -> dict:
             parsed["reasoning"] = "无"
     return parsed
  
-def call_backend(statement: str) -> dict:
-    """调用 FastAPI 后端 POST /analyze。"""
+def require_fields(data: dict, fields: list[str], label: str) -> None:
+    """检查工作流输出是否包含必要字段。"""
+    missing = []
+    for field in fields:
+        if field not in data:
+            missing.append(field)
+    if missing:
+        raise RuntimeError(
+            f"{label} 缺少必要字段：{', '.join(missing)}。"
+        )
+ 
+# ==============================
+# Dify Workflow 调用
+# ==============================
+def call_workflow(api_key: str, inputs: dict) -> dict:
+    """调用一个 Dify Workflow，并返回 outputs。"""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "inputs": inputs,
+        "response_mode": "blocking",
+        "user": "taco-streamlit-cloud",
+    }
     response = requests.post(
-        API_URL,
-        json={"statement": statement},
+        get_dify_api_url(),
+        headers=headers,
+        json=payload,
         timeout=90,
     )
+    if response.status_code >= 400:
+        print("Dify API request failed")
+        print("Status Code:", response.status_code)
+        print("Response Text:", response.text)
     response.raise_for_status()
-    return response.json()
+    data = response.json()
+    try:
+        outputs = data["data"]["outputs"]
+    except (KeyError, TypeError) as exc:
+        raise RuntimeError("Dify 返回格式不符合预期。") from exc
+    if not isinstance(outputs, dict):
+        raise RuntimeError("Dify 返回格式不符合预期。")
+    return outputs
  
+def run_full_taco_analysis(statement: str) -> dict:
+    """串联 Dify 三个 Workflow，返回完整 TACO 分析结果。"""
+    wf1_api_key = get_secret("WF1_API_KEY")
+    wf2_api_key = get_secret("WF2_API_KEY")
+    wf3_api_key = get_secret("WF3_API_KEY")
+    classification = call_workflow(
+        wf1_api_key,
+        {
+            "trump_statement": statement,
+        },
+    )
+    require_fields(
+        classification,
+        ["hardness", "domain", "reasoning"],
+        "Workflow 1 输出",
+    )
+    probability = call_workflow(
+        wf2_api_key,
+        {
+            "hardness": classification["hardness"],
+            "domain": classification["domain"],
+            "reasoning": classification["reasoning"],
+        },
+    )
+    require_fields(
+        probability,
+        ["taco_probability", "confidence"],
+        "Workflow 2 输出",
+    )
+    market_prediction = call_workflow(
+        wf3_api_key,
+        {
+            "taco_probability": probability["taco_probability"],
+            "confidence": probability["confidence"],
+            "domain": classification["domain"],
+        },
+    )
+    return {
+        "statement": statement,
+        "classification": classification,
+        "taco_probability": probability,
+        "market_prediction": market_prediction,
+    }
+ 
+# ==============================
+# 图表
+# ==============================
 def plot_market_prediction(market_prediction: dict) -> None:
     """把 USO / GLD / SPY 的方向转换成英文柱状图。"""
-    # 图表中全部使用英文，避免 matplotlib 中文乱码
     assets = ["USO", "GLD", "SPY"]
-    fields = ["direction_uso", "direction_gld", "direction_spy"]
+    fields = [
+        "direction_uso",
+        "direction_gld",
+        "direction_spy",
+    ]
     direction_map = {
         "up": 1,
         "neutral": 0,
@@ -117,12 +250,16 @@ def plot_market_prediction(market_prediction: dict) -> None:
         "neutral": "gray",
         "down": "red",
     }
-    directions = [
-        normalize_direction(market_prediction.get(field, "neutral"))
-        for field in fields
-    ]
-    values = [direction_map[direction] for direction in directions]
-    colors = [color_map[direction] for direction in directions]
+    directions = []
+    for field in fields:
+        direction = normalize_direction(market_prediction.get(field, "neutral"))
+        directions.append(direction)
+    values = []
+    for direction in directions:
+        values.append(direction_map[direction])
+    colors = []
+    for direction in directions:
+        colors.append(color_map[direction])
     fig, ax = plt.subplots(figsize=(7, 4))
     bars = ax.bar(
         assets,
@@ -135,7 +272,11 @@ def plot_market_prediction(market_prediction: dict) -> None:
     ax.set_ylim(-1.5, 1.5)
     ax.set_yticks([-1, 0, 1])
     ax.set_yticklabels(["down", "neutral", "up"])
-    ax.axhline(0, color="black", linewidth=0.8)
+    ax.axhline(
+        y=0,
+        color="black",
+        linewidth=0.8,
+    )
     for bar, direction in zip(bars, directions):
         y = bar.get_height()
         if y > 0:
@@ -155,23 +296,56 @@ def plot_market_prediction(market_prediction: dict) -> None:
     st.pyplot(fig)
     plt.close(fig)
  
+# ==============================
+# 历史记录
+# ==============================
 def add_to_history(result: dict) -> None:
     """把本次分析结果放入最近 5 次历史记录。"""
     st.session_state["history"].insert(0, result)
     st.session_state["history"] = st.session_state["history"][:5]
  
-# session_state 初始化
+# ==============================
+# 页面初始化
+# ==============================
+st.set_page_config(
+    page_title="TACO雷达",
+    layout="wide",
+)
 if "result" not in st.session_state:
     st.session_state["result"] = None
 if "history" not in st.session_state:
     st.session_state["history"] = []
  
-# 页面标题区
-st.set_page_config(page_title="TACO Radar", layout="wide")
-st.title("TACO Radar")
+st.title("TACO雷达")
 st.caption("AI追踪特朗普言论，分析 TACO 概率与市场影响")
  
+# ==============================
+# Secrets 检查
+# ==============================
+missing_secrets = check_secrets()
+if missing_secrets:
+    st.error(
+        "缺少 Streamlit Secrets："
+        + "、".join(missing_secrets)
+    )
+    st.info(
+        "如果你在本地运行这个云端版文件，需要创建本地 secrets.toml；"
+        "如果你部署到 Streamlit Cloud，需要在 App Settings → Secrets 中配置这些变量。"
+    )
+    with st.expander("Secrets 示例"):
+        st.code(
+            """
+DIFY_BASE_URL = "https://api.dify.ai/v1"
+WF1_API_KEY = "第6课 Statement Classifier 的 API Key"
+WF2_API_KEY = "第7课 Probability Engine 的 API Key"
+WF3_API_KEY = "第8课 Market Impact Prediction 的 API Key"
+""".strip(),
+            language="toml",
+        )
+ 
+# ==============================
 # 输入区
+# ==============================
 statement = st.text_area(
     "输入特朗普言论 Statement",
     placeholder="Paste a Trump statement here...",
@@ -179,11 +353,16 @@ statement = st.text_area(
 )
 button_col1, button_col2 = st.columns([1, 1])
 with button_col1:
-    analyze_clicked = st.button("开始分析 / Analyze", type="primary")
+    analyze_clicked = st.button(
+        "开始分析 / Analyze",
+        type="primary",
+    )
 with button_col2:
     clear_clicked = st.button("清空结果 / Clear")
  
+# ==============================
 # 按钮逻辑
+# ==============================
 if clear_clicked:
     st.session_state["result"] = None
     st.session_state["history"] = []
@@ -192,34 +371,44 @@ if analyze_clicked:
     clean_statement = statement.strip()
     if not clean_statement:
         st.warning("请先输入一条 Trump 相关言论。")
+    elif missing_secrets:
+        st.error("Secrets 配置不完整，不能调用 Dify。")
+        st.info("请先配置 WF1_API_KEY、WF2_API_KEY、WF3_API_KEY。")
     else:
         with st.spinner("AI分析中，请稍候..."):
             try:
-                result = call_backend(clean_statement)
+                result = run_full_taco_analysis(clean_statement)
                 st.session_state["result"] = result
                 add_to_history(result)
-            except requests.exceptions.ConnectionError:
-                st.error("无法连接后端。请先启动 FastAPI：python -m uvicorn app.main:app --reload")
+                st.success("分析完成。")
             except requests.exceptions.Timeout:
                 st.error("请求超时。Dify 工作流可能响应较慢，请稍后重试。")
             except requests.exceptions.HTTPError as error:
-                detail = None
+                status_code = getattr(error.response, "status_code", "未知状态码")
+                response_text = ""
                 try:
-                    detail = error.response.json().get("detail")
+                    response_text = error.response.text
                 except Exception:
-                    detail = str(error)
-                st.error(f"后端返回错误：{error.response.status_code}｜{detail}")
+                    response_text = ""
+                st.error("Dify API 请求失败，请检查 Secrets、API Key 或 Dify 工作流是否已发布。")
+                st.caption(f"状态码：{status_code}")
+                if response_text:
+                    with st.expander("查看 Dify 返回的错误信息"):
+                        st.code(response_text)
+            except RuntimeError as error:
+                st.error(str(error))
             except Exception as error:
                 st.error(f"分析失败：{error}")
  
+# ==============================
 # 结果展示区
+# ==============================
 result = st.session_state["result"]
 if result:
     st.subheader("核心分析结果")
     classification = result.get("classification", {})
     probability_info = result.get("taco_probability", {})
     market_prediction_raw = result.get("market_prediction", {})
-    # 兼容只有 summary 的市场预测结果
     market_prediction = parse_market_summary(market_prediction_raw)
     hardness = classification.get("hardness", "N/A")
     domain = classification.get("domain", "N/A")
@@ -267,7 +456,9 @@ if result:
     with st.expander("查看完整 JSON 返回结果"):
         st.json(result)
  
+# ==============================
 # 历史记录区
+# ==============================
 if st.session_state["history"]:
     st.subheader("最近 5 次分析记录")
     for index, item in enumerate(st.session_state["history"], start=1):
@@ -279,7 +470,11 @@ if st.session_state["history"]:
             short_statement += "..."
         domain = classification.get("domain", "N/A")
         prob = probability_info.get("taco_probability", "N/A")
-        st.write(f"{index}. [{domain}] TACO概率：{prob}%｜{short_statement}")
+        st.write(
+            f"{index}. [{domain}] TACO概率：{prob}%｜{short_statement}"
+        )
  
+# ==============================
 # 底部说明
+# ==============================
 st.caption("提示：本项目仅用于事件影响方向性分析，不构成投资建议。")
