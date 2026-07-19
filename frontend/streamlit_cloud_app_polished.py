@@ -283,50 +283,36 @@ if "history" not in st.session_state:
     st.session_state["history"] = []
 
 # Title Section
+
+st.image(
+    "assets/trumptalking.jpg",
+    use_container_width=True
+)
+
 st.markdown("""
 <div style="
-background-image: url('assets/trumptalking.jpg');
-background-size: cover;
-background-position: center;
-height: 320px;
-border-radius: 15px;
-display: flex;
-align-items: center;
-justify-content: center;
-">
-
-<div style="
 text-align:center;
-background: rgba(0,0,0,0.35);
-padding:25px;
-border-radius:15px;
+margin-top:-230px;
+padding-bottom:170px;
+text-shadow: 2px 2px 8px black;
 ">
 
 <h1 style="
 color:white;
 font-size:54px;
-margin-bottom:10px;
+font-weight:800;
 ">
-TACO RADAR
+🦅 TACO RADAR
 </h1>
 
 <p style="
-color:#D1D5DB;
+color:#E2E8F0;
 font-size:22px;
-margin-bottom:10px;
+font-weight:500;
 ">
 Algorithmic Speech Tracking & Alpha Market Impact Engine
 </p>
 
-<p style="
-color:#94A3B8;
-font-size:16px;
-">
-Monitoring political variables, processing systemic geopolitical postures,
-and tracking structural capital asset trends.
-</p>
-
-</div>
 </div>
 """, unsafe_allow_html=True)
 
