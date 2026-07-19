@@ -283,9 +283,53 @@ if "history" not in st.session_state:
     st.session_state["history"] = []
 
 # Title Section
-st.title("🦅 TACO RADAR")
-st.subheader("Algorithmic Speech Tracking & Alpha Market Impact Engine")
-st.caption("Monitoring political variables, processing systemic geopolitical postures, and tracking structural capital asset trends.")
+st.markdown("""
+<div style="
+background-image: url('assets/trumptalking.jpg');
+background-size: cover;
+background-position: center;
+height: 320px;
+border-radius: 15px;
+display: flex;
+align-items: center;
+justify-content: center;
+">
+
+<div style="
+text-align:center;
+background: rgba(0,0,0,0.35);
+padding:25px;
+border-radius:15px;
+">
+
+<h1 style="
+color:white;
+font-size:54px;
+margin-bottom:10px;
+">
+TACO RADAR
+</h1>
+
+<p style="
+color:#D1D5DB;
+font-size:22px;
+margin-bottom:10px;
+">
+Algorithmic Speech Tracking & Alpha Market Impact Engine
+</p>
+
+<p style="
+color:#94A3B8;
+font-size:16px;
+">
+Monitoring political variables, processing systemic geopolitical postures,
+and tracking structural capital asset trends.
+</p>
+
+</div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # ==============================
 # SECURITY GATEWAY CONFIG
