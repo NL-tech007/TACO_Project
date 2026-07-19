@@ -231,10 +231,49 @@ st.set_page_config(
 # Custom UI Styling Injection
 st.markdown("""
     <style>
-    .reportview-container { background: #0E1117; }
-    div[data-testid="stMetricValue"] { font-family: 'Courier New', monospace; font-weight: bold; color: #F1F5F9; }
-    div[data-testid="stMetric"] { background-color: #1E293B; border: 1px solid #334155; border-radius: 8px; padding: 15px; }
-    .stTextArea textarea { background-color: #1E293B !important; color: #F8FAFC !important; border: 1px solid #475569 !important; }
+    /* Main Background adjustments */
+    .reportview-container { 
+        background: #0E1117; 
+    }
+    
+    /* Technical Typography & Financial Metric Cards */
+    div[data-testid="stMetricValue"] { 
+        font-family: 'Courier New', monospace; 
+        font-weight: bold; 
+        color: #F1F5F9; 
+    }
+    div[data-testid="stMetric"] { 
+        background-color: #1E293B; 
+        border: 1px solid #334155; 
+        border-radius: 8px; 
+        padding: 15px; 
+    }
+    
+    /* Interactive Terminal Inputs */
+    .stTextArea textarea { 
+        background-color: #1E293B !important; 
+        color: #F8FAFC !important; 
+        border: 1px solid #475569 !important; 
+    }
+
+    /* ─── NEW NEON IMAGE MATRIX STYLING ─── */
+    div[data-testid="stImage"] img {
+        border: 2px solid #00f2fe;
+        border-radius: 8px;
+        box-shadow: 0 0 10px #00f2fe, 
+                    0 0 20px rgba(0, 242, 254, 0.3), 
+                    inset 0 0 10px rgba(0, 242, 254, 0.2);
+        padding: 4px;
+        background-color: #0E1117;
+        transition: all 0.3s ease-in-out;
+    }
+
+    /* Subtle pulse animation when hovering over images/GIFs */
+    div[data-testid="stImage"] img:hover {
+        border-color: #ff007f;
+        box-shadow: 0 0 15px #ff007f, 
+                    0 0 30px rgba(255, 0, 127, 0.5);
+    }
     </style>
 """, unsafe_allow_html=True)
 
