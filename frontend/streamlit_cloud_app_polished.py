@@ -285,7 +285,7 @@ if "history" not in st.session_state:
 # Title Section
 
 st.image(
-    "assets/trumptalking.jpg",
+    "frontend/assets/trumptalking.jpg",
     use_container_width=True
 )
 
